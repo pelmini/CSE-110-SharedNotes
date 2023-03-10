@@ -13,6 +13,8 @@ import java.util.concurrent.Future;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
 
 public class NoteAPI {
     // TODO: Implement the API using OkHttp!
@@ -65,10 +67,63 @@ public class NoteAPI {
         }
     }
 
+    @WorkerThread
+    public Note getNote(String title) {
+        // URLs cannot contain spaces, so we replace them with %20.
+        String encodedTitle = title.replace(" ", "%20");
+
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedTitle)
+                .method("GET", null)
+                .build();
+
+        try (var response = client.newCall(request).execute()) {
+            assert response.body() != null;
+            var body = response.body().string();
+            Log.i("GET NOTE", body);
+            return Note.fromJSON(body);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @WorkerThread
+    public void putNote(String title, String json) {
+        // URLs cannot contain spaces, so we replace them with %20.
+        String encodedTitle = title.replace(" ", "%20");
+
+        // Create a request object with the encoded URL and JSON data in the request body
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(json, JSON);
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedTitle)
+                .method("PUT", body)
+                .build();
+
+        try (var response = client.newCall(request).execute()) {
+            assert response.body() != null;
+            var bodyResult = response.body().string();
+            Log.i("PUT NOTE", bodyResult);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @AnyThread
     public Future<String> echoAsync(String msg) {
         var executor = Executors.newSingleThreadExecutor();
         var future = executor.submit(() -> echo(msg));
+
+        // We can use future.get(1, SECONDS) to wait for the result.
+        return future;
+    }
+
+    @AnyThread
+    // good practice to have async method in order not to black the main thread
+    public Future<Note> getNoteAsync(String title) {
+        var executor = Executors.newSingleThreadExecutor();
+        var future = executor.submit(() -> getNote(title));
 
         // We can use future.get(1, SECONDS) to wait for the result.
         return future;

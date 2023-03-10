@@ -6,8 +6,10 @@ import androidx.lifecycle.Observer;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class NoteRepository {
     private final NoteDao dao;
@@ -93,22 +95,27 @@ public class NoteRepository {
         // TODO: Set up polling background thread (MutableLiveData?)
         // TODO: Refer to TimerService from https://github.com/DylanLukes/CSE-110-WI23-Demo5-V2.
 
+        // Want to return a live data object
+        var note = new MediatorLiveData<Note>();
+
         // Cancel any previous poller if it exists.
         if (this.poller != null && !this.poller.isCancelled()) {
             poller.cancel(true);
         }
 
         // Set up a background thread that will poll the server every 3 seconds.
+        poller = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
+            note.postValue(NoteAPI.provide().getNote(title));
+        }, 0, 3, TimeUnit.SECONDS);
 
         // You may (but don't have to) want to cache the LiveData's for each title, so that
         // you don't create a new polling thread every time you call getRemote with the same title.
         // You don't need to worry about killing background threads.
-
-        throw new UnsupportedOperationException("Not implemented yet");
+        return note;
     }
 
     public void upsertRemote(Note note) {
         // TODO: Implement upsertRemote!
-        throw new UnsupportedOperationException("Not implemented yet");
+        NoteAPI.provide().putNote(note.toJSON(), note.title);
     }
 }
